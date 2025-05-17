@@ -1,7 +1,15 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+
+#include <fstream>
+#include <sstream>
+#include <string>
 #include <iostream>
 
+
+std::string loadShaderSource(const char* filepath);
+GLuint compileShader(GLenum type, const char* source);
+GLuint createShaderProgram(const char* vertPath, const char* fragPath);
 int main() {
     // Initialize GLFW
     if (!glfwInit()) {
@@ -70,38 +78,7 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, 0); // отвязка данных
     glBindVertexArray(0); // отвязка VAO
 
-    // Shader vertex program
-    const char* vert_shader_source = R"(
-        #version 410 core
-        layout (location = 0) in vec3 vp;
-        void main() {
-            gl_Position = vec4(vp, 1.0);
-        }
-    )";
-    // Shader fragment program
-    const char* frag_shader_source = R"(
-        #version 410 core
-        uniform vec4 our_color;
-        out vec4 frag_color;
-        void main() {
-            frag_color = our_color;
-        }
-    )";
-    // frag_color = vec4(0.2, 0.7, 0.5, 1.0);
-    // Компиляция шейдеров
-    // вершинный шейдер
-    GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vert_shader_source, NULL);
-    glCompileShader(vertexShader);
-    // фрагментный шейдер
-    GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &frag_shader_source, NULL);
-    glCompileShader(fragmentShader);
-    // шейдерная программа
-    unsigned int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);  // <--- Объединение
+    GLuint shaderProgram = createShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
 
     while (!glfwWindowShouldClose(window)) {
         // Set background color (Variant 9: 1.0, 0.4, 0.1)
@@ -132,4 +109,57 @@ int main() {
     // Cleanup
     glfwTerminate();
     return 0;
+}
+std::string loadShaderSource(const char* filepath) {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open shader file: " << filepath << std::endl;
+        return "";
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+GLuint compileShader(GLenum type, const char* source) {
+    GLuint shader = glCreateShader(type);
+    glShaderSource(shader, 1, &source, nullptr);
+    glCompileShader(shader);
+
+    // Проверка на ошибки компиляции
+    GLint success;
+    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+    if (!success) {
+        GLchar infoLog[1024];
+        glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
+        std::cerr << "Shader compilation failed:\n" << infoLog << std::endl;
+    }
+    return shader;
+}
+
+GLuint createShaderProgram(const char* vert_path, const char* frag_path) {
+    std::string vert_shader_source = loadShaderSource(vert_path);
+    std::string frag_shader_source = loadShaderSource(frag_path);
+    if (vert_shader_source.empty() || frag_shader_source.empty()) return 0;
+
+    GLuint vertex_shader = compileShader(GL_VERTEX_SHADER, vert_shader_source.c_str());
+    GLuint fragment_shader = compileShader(GL_FRAGMENT_SHADER, frag_shader_source.c_str());
+
+    GLuint shaderProgram = glCreateProgram();
+    glAttachShader(shaderProgram, vertex_shader);
+    glAttachShader(shaderProgram, fragment_shader);
+    glLinkProgram(shaderProgram);
+
+    // Проверка на ошибки линковки
+    GLint success;
+    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+    if (!success) {
+        GLchar infoLog[1024];
+        glGetProgramInfoLog(shaderProgram, 1024, nullptr, infoLog);
+        std::cerr << "Shader program linking failed:\n" << infoLog << std::endl;
+    }
+
+    glDeleteShader(vertex_shader);
+    glDeleteShader(fragment_shader);
+
+    return shaderProgram;
 }

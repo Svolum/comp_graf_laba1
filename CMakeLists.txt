@@ -44,3 +44,9 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
         "${GLFW_DIR}/lib-vc2022/glfw3.dll"
         $<TARGET_FILE_DIR:${PROJECT_NAME}>
 )
+# Copy shaders folder to the build directory
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_SOURCE_DIR}/shaders"
+        $<TARGET_FILE_DIR:${PROJECT_NAME}>/shaders
+)
