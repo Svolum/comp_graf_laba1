@@ -1,6 +1,10 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
+#include "glm.hpp"
+#include "glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/type_ptr.hpp"
+
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -10,6 +14,10 @@
 std::string loadShaderSource(const char* filepath);
 GLuint compileShader(GLenum type, const char* source);
 GLuint createShaderProgram(const char* vertPath, const char* fragPath);
+void processInput(GLFWwindow* window) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true); // Закрыть окно
+}
 int main() {
     // Initialize GLFW
     if (!glfwInit()) {
@@ -46,6 +54,31 @@ int main() {
     std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "GLEW Version: " << glewGetString(GLEW_VERSION) << std::endl;
 
+    // Camera
+    // glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+    // glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
+    // glm::vec3 cameraDirection = glm::normalize(cameraPosition - cameraTarget);
+    // glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+    // glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
+    // glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
+    // new Camera
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
+    glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    const float cameraSpeed = 0.05f;
+
+    // Projection
+    glm::mat4 projection = glm::perspective(
+        glm::radians(45.0f), // fovy vertical
+        1.0f, // aspect // or ratio
+        0.1f, //zNear
+        100.0f  //zFar
+    );
+    // Viev
+    // glm::mat4 viev = glm::lookat(cameraPosition, cameraTarget, cameraUp);
+    // new Viev
+    glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+    
     // vertices
     float points[] = { // трапеция
         -0.5f,  -0.5f,  0.0f,
@@ -81,6 +114,9 @@ int main() {
     GLuint shaderProgram = createShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
 
     while (!glfwWindowShouldClose(window)) {
+        // обработка ввода
+        processInput(window);
+
         // Set background color (Variant 9: 1.0, 0.4, 0.1)
         glClearColor(1.0f, 0.4f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -135,7 +171,6 @@ GLuint compileShader(GLenum type, const char* source) {
     }
     return shader;
 }
-
 GLuint createShaderProgram(const char* vert_path, const char* frag_path) {
     std::string vert_shader_source = loadShaderSource(vert_path);
     std::string frag_shader_source = loadShaderSource(frag_path);
