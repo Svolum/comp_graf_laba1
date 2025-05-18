@@ -37,6 +37,8 @@ link_directories(
 # Add executable
 add_executable(${PROJECT_NAME} 
     src/main.cpp
+    src/shader_load.hpp
+    src/shader_load.cpp
 )
 
 # Link libraries

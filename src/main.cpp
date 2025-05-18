@@ -5,18 +5,42 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 
-#include <fstream>
-#include <sstream>
-#include <string>
-#include <iostream>
+#include "shader_load.hpp"
 
 
-std::string loadShaderSource(const char* filepath);
-GLuint compileShader(GLenum type, const char* source);
-GLuint createShaderProgram(const char* vertPath, const char* fragPath);
-void processInput(GLFWwindow* window) {
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true); // Закрыть окно
+const unsigned int SRC_WIDTH = 1024;
+const unsigned int SRC_HEIGHT = 768;
+
+float lastX = SRC_WIDTH / 2, lastY = SRC_HEIGHT / 2;
+float yaw = -90.0f, pitch = 0.0f;
+bool firstMouse = true;
+
+void mouse_callback(GLFWwindow* window, double xposIn, double yposIn){
+    float xpos = static_cast<float>(xposIn);
+    float ypos = static_cast<float>(yposIn);
+    if (firstMouse){
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    // смещение между последним и текущим кадром
+    float xoffset = xpos - lastX;
+    float yoffset = lastY - ypos;
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensetivity = 0.01f;
+    xoffset *= sensetivity;
+    yoffset *= sensetivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+    // нельзя смотреть прямо вверх или вниз
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
 }
 int main() {
     // Initialize GLFW
@@ -55,17 +79,10 @@ int main() {
     std::cout << "GLEW Version: " << glewGetString(GLEW_VERSION) << std::endl;
 
     // Camera
-    // glm::vec3 cameraPosition = glm::vec3(0.0f, 0.0f, 0.0f);
-    // glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, 0.0f);
-    // glm::vec3 cameraDirection = glm::normalize(cameraPosition - cameraTarget);
-    // glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-    // glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection));
-    // glm::vec3 cameraUp = glm::cross(cameraDirection, cameraRight);
-    // new Camera
     glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f);
     glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    const float cameraSpeed = 0.05f;
+    const float cameraSpeed = 0.001f;
 
     // Projection
     glm::mat4 projection = glm::perspective(
@@ -75,8 +92,6 @@ int main() {
         100.0f  //zFar
     );
     // Viev
-    // glm::mat4 viev = glm::lookat(cameraPosition, cameraTarget, cameraUp);
-    // new Viev
     glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
     
     // vertices
@@ -111,11 +126,34 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, 0); // отвязка данных
     glBindVertexArray(0); // отвязка VAO
 
+    // Shader
     GLuint shaderProgram = createShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
+
+    // Cursor
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetCursorPosCallback(window, mouse_callback);
+
 
     while (!glfwWindowShouldClose(window)) {
         // обработка ввода
-        processInput(window);
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+            glfwSetWindowShouldClose(window, true); // Закрыть окно
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            cameraPos -= cameraSpeed * cameraFront;
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            cameraPos += cameraSpeed * cameraFront;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+
+        glm::vec3 direction;
+        direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+        direction.y = sin(glm::radians(pitch));
+        direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        cameraFront = glm::normalize(direction);
+
+        view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
         // Set background color (Variant 9: 1.0, 0.4, 0.1)
         glClearColor(1.0f, 0.4f, 0.1f, 1.0f);
@@ -131,6 +169,15 @@ int main() {
         float vertexColorLocation = glGetUniformLocation(shaderProgram, "our_color");
         glUniform4f(vertexColorLocation, redValue, greenValue, 0.0f, 1.0f);
 
+
+        // Get locations
+        GLuint viewLoc = glGetUniformLocation(shaderProgram, "view");
+        GLuint projLoc = glGetUniformLocation(shaderProgram, "projection");
+
+        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view)); 
+        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+
+
         glBindVertexArray(VAO);
         // glDrawArrays(GL_TRIANGLES, 0, 3); т.к. индексированный рендеринг
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -145,56 +192,4 @@ int main() {
     // Cleanup
     glfwTerminate();
     return 0;
-}
-std::string loadShaderSource(const char* filepath) {
-    std::ifstream file(filepath);
-    if (!file.is_open()) {
-        std::cerr << "Failed to open shader file: " << filepath << std::endl;
-        return "";
-    }
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
-}
-GLuint compileShader(GLenum type, const char* source) {
-    GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, nullptr);
-    glCompileShader(shader);
-
-    // Проверка на ошибки компиляции
-    GLint success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        GLchar infoLog[1024];
-        glGetShaderInfoLog(shader, 1024, nullptr, infoLog);
-        std::cerr << "Shader compilation failed:\n" << infoLog << std::endl;
-    }
-    return shader;
-}
-GLuint createShaderProgram(const char* vert_path, const char* frag_path) {
-    std::string vert_shader_source = loadShaderSource(vert_path);
-    std::string frag_shader_source = loadShaderSource(frag_path);
-    if (vert_shader_source.empty() || frag_shader_source.empty()) return 0;
-
-    GLuint vertex_shader = compileShader(GL_VERTEX_SHADER, vert_shader_source.c_str());
-    GLuint fragment_shader = compileShader(GL_FRAGMENT_SHADER, frag_shader_source.c_str());
-
-    GLuint shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertex_shader);
-    glAttachShader(shaderProgram, fragment_shader);
-    glLinkProgram(shaderProgram);
-
-    // Проверка на ошибки линковки
-    GLint success;
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-    if (!success) {
-        GLchar infoLog[1024];
-        glGetProgramInfoLog(shaderProgram, 1024, nullptr, infoLog);
-        std::cerr << "Shader program linking failed:\n" << infoLog << std::endl;
-    }
-
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-
-    return shaderProgram;
 }
