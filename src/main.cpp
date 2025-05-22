@@ -1,13 +1,17 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
+
 #include <vector>
 #include <iostream>
+
 #include "shader_load.hpp"
 #include "my_viev.hpp"
 
@@ -16,10 +20,11 @@ const unsigned int SRC_HEIGHT = 768;
 
 struct MeshInfo {
     unsigned int indexCount;
-    unsigned int indexOffset; // в индексовом буфере (в элементах, не в байтах)
+    unsigned int indexOffset; // в элементах, не в байтах
     glm::vec3 color;
 };
 std::vector<MeshInfo> meshParts;
+
 int main() {
     // Инициализация GLFW
     if (!glfwInit()) {
@@ -34,7 +39,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Создание окна
-    GLFWwindow* window = glfwCreateWindow(SRC_WIDTH, SRC_HEIGHT, "Model Viewer", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(SRC_WIDTH, SRC_HEIGHT, "Pashalka", nullptr, nullptr);
     if (!window) {
         glfwTerminate();
         std::cerr << "ОШИБКА: не удалось создать окно." << std::endl;
@@ -59,10 +64,10 @@ int main() {
     glEnable(GL_DEPTH_TEST);
 
     // Настройка камеры
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 5.0f);
     glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    const float cameraSpeed = 0.005f; // Увеличена скорость для удобства
+    const float cameraSpeed = 0.005f;
 
     // Проекционная матрица
     glm::mat4 projection = glm::perspective(
@@ -86,24 +91,26 @@ int main() {
         glfwTerminate();
         return 1;
     }
-    ///
+
+    // Загрузка вершин, нормалей и индексов
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
+
     unsigned int currentIndexOffset = 0;
+    
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
         aiMesh* mesh = scene->mMeshes[m];
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
-        aiColor3D kd(0.f, 0.f, 0.f);
+        aiColor3D kd(0.8f, 0.8f, 0.8f); // Цвет по умолчанию
         material->Get(AI_MATKEY_COLOR_DIFFUSE, kd);
 
-        // Запоминаем текущую длину вершин, чтобы корректно сместить индексы
-        unsigned int vertexOffset = vertices.size() / 3;
-
+        unsigned int vertexOffset = vertices.size() / 6;
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
+            // Вершины
             vertices.push_back(mesh->mVertices[i].x);
             vertices.push_back(mesh->mVertices[i].y);
             vertices.push_back(mesh->mVertices[i].z);
-            // нормали
+            // Нормали
             vertices.push_back(mesh->mNormals[i].x);
             vertices.push_back(mesh->mNormals[i].y);
             vertices.push_back(mesh->mNormals[i].z);
@@ -112,63 +119,18 @@ int main() {
         for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
             aiFace face = mesh->mFaces[i];
             for (unsigned int j = 0; j < face.mNumIndices; ++j) {
-                // Смещение индексов, чтобы не было наложения между мешами
                 indices.push_back(face.mIndices[j] + vertexOffset);
             }
         }
 
+        // Добавление информации о цвете и индексе
         MeshInfo info;
         info.indexCount = mesh->mNumFaces * 3;
         info.indexOffset = currentIndexOffset;
         info.color = glm::vec3(kd.r, kd.g, kd.b);
         meshParts.push_back(info);
-
         currentIndexOffset += info.indexCount;
     }
-    // glm::vec3 color;
-
-    // unsigned int currentMeshIndex = 0;
-    // for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
-    //     aiMesh* mesh = scene->mMeshes[m];
-
-    //     // Запоминаем текущую длину вершин, чтобы корректно сместить индексы
-    //     unsigned int vertexOffset = vertices.size() / 3;
-
-    //     for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-    //         vertices.push_back(mesh->mVertices[i].x);
-    //         vertices.push_back(mesh->mVertices[i].y);
-    //         vertices.push_back(mesh->mVertices[i].z);
-    //     }
-
-    //     for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
-    //         aiFace face = mesh->mFaces[i];
-    //         for (unsigned int j = 0; j < face.mNumIndices; ++j) {
-    //             // Смещение индексов, чтобы не было наложения между мешами
-    //             indices.push_back(face.mIndices[j] + vertexOffset);
-    //         }
-    //     }
-    //     currentMeshIndex++;
-    // }
-    // aiMaterial* material = scene->mMaterials[3];
-    // aiColor3D diffuseColor(0.f, 0.f, 0.f);
-    // if (material->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor) == AI_SUCCESS) {
-    //     color = glm::vec3(diffuseColor.r, diffuseColor.g, diffuseColor.b);
-    // }
-
-    ///
-    // aiMesh* mesh = scene->mMeshes[0];
-    // std::vector<float> vertices;
-    // std::vector<unsigned int> indices;
-    // for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-    //     vertices.push_back(mesh->mVertices[i].x);
-    //     vertices.push_back(mesh->mVertices[i].y);
-    //     vertices.push_back(mesh->mVertices[i].z);
-    // }
-    // for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
-    //     aiFace face = mesh->mFaces[i];
-    //     for (unsigned int j = 0; j < face.mNumIndices; ++j)
-    //         indices.push_back(face.mIndices[j]);
-    // }
 
     // Настройка VBO, VAO, EBO
     GLuint VBO, VAO, EBO;
@@ -183,11 +145,11 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-    // vertex attributes
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);          // позиция
+    // Позиции вершин
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    // normals
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float))); // нормаль
+    // Нормали
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -195,18 +157,11 @@ int main() {
 
     // Создание шейдерной программы
     GLuint shaderProgram = createShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
-    GLuint shaderProgram1 = createShaderProgram("shaders/vertex.glsl", "shaders/fragment.glsl");
     if (shaderProgram == 0) {
         std::cerr << "ОШИБКА: не удалось создать шейдерную программу." << std::endl;
         glfwTerminate();
         return 1;
     }
-    GLuint lineShaderProgram = createShaderProgram("shaders/line_vertex.glsl", "shaders/line_fragment.glsl");
-    if (lineShaderProgram == 0) {
-        std::cerr << "ОШИБКА: не удалось создать шейдерную программу для линий." << std::endl;
-        glfwTerminate();
-        return 1;
-    };
 
     // Настройка курсора
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
@@ -250,40 +205,35 @@ int main() {
 
         glUseProgram(shaderProgram);
 
-        // Установка цвета для каждого меша
-        // Свет направлен по диагонали сверху-влево
-        glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
-        glm::vec3 lightColor(1.0f, 1.0f, 1.0f); // белый свет
+        // Параметры освещения
+        glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f)); // Свет сверху-спереди-слева
+        glm::vec3 lightColor(1.0f, 1.0f, 1.0f); // Белый свет
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightDir"), 1, glm::value_ptr(lightDir));
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
 
         // Установка матриц
-        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+        glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)); // Масштаб 1.0
         GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
         GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
         GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
-        glUniformMatrix4fv(modelLoc , 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-        
+
         // Отрисовка модели
         glBindVertexArray(VAO);
-        ///
         for (const auto& meshPart : meshParts) {
             GLint colorLoc = glGetUniformLocation(shaderProgram, "objectColor");
             glUniform3f(colorLoc, meshPart.color.r, meshPart.color.g, meshPart.color.b);
 
-            glUniform3fv(glGetUniformLocation(shaderProgram, "lightDir"), 1, glm::value_ptr(lightDir));
-            glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
             glDrawElements(
-                GL_TRIANGLES, 
-                meshPart.indexCount, 
-                GL_UNSIGNED_INT, 
+                GL_TRIANGLES,
+                meshPart.indexCount,
+                GL_UNSIGNED_INT,
                 (void*)(meshPart.indexOffset * sizeof(unsigned int))
             );
         }
-        /// bord
-        // glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
-    
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
