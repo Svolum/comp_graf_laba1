@@ -62,7 +62,7 @@ int main() {
     glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 10.0f);
     glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    const float cameraSpeed = 0.01f; // Увеличена скорость для удобства
+    const float cameraSpeed = 0.005f; // Увеличена скорость для удобства
 
     // Проекционная матрица
     glm::mat4 projection = glm::perspective(
@@ -103,6 +103,10 @@ int main() {
             vertices.push_back(mesh->mVertices[i].x);
             vertices.push_back(mesh->mVertices[i].y);
             vertices.push_back(mesh->mVertices[i].z);
+            // нормали
+            vertices.push_back(mesh->mNormals[i].x);
+            vertices.push_back(mesh->mNormals[i].y);
+            vertices.push_back(mesh->mNormals[i].z);
         }
 
         for (unsigned int i = 0; i < mesh->mNumFaces; ++i) {
@@ -179,8 +183,12 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    // vertex attributes
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);          // позиция
     glEnableVertexAttribArray(0);
+    // normals
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float))); // нормаль
+    glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -242,9 +250,17 @@ int main() {
 
         glUseProgram(shaderProgram);
 
+        // Установка цвета для каждого меша
+        // Свет направлен по диагонали сверху-влево
+        glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f));
+        glm::vec3 lightColor(1.0f, 1.0f, 1.0f); // белый свет
+
         // Установка матриц
+        glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.0f));
+        GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
         GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
         GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
+        glUniformMatrix4fv(modelLoc , 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
         
@@ -252,8 +268,11 @@ int main() {
         glBindVertexArray(VAO);
         ///
         for (const auto& meshPart : meshParts) {
-            GLint colorLoc = glGetUniformLocation(shaderProgram, "materialColor");
+            GLint colorLoc = glGetUniformLocation(shaderProgram, "objectColor");
             glUniform3f(colorLoc, meshPart.color.r, meshPart.color.g, meshPart.color.b);
+
+            glUniform3fv(glGetUniformLocation(shaderProgram, "lightDir"), 1, glm::value_ptr(lightDir));
+            glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
             glDrawElements(
                 GL_TRIANGLES, 
                 meshPart.indexCount, 
