@@ -12,7 +12,8 @@ const unsigned int SRC_WIDTH = 1024;
 const unsigned int SRC_HEIGHT = 768;
 
 float lastX = SRC_WIDTH / 2, lastY = SRC_HEIGHT / 2;
-float yaw = -90.0f, pitch = 0.0f;
+float yaw = -90.0f, pitch = 0.0f, roll = 90.0f;
+float sensetivity = 0.01f;
 bool firstMouse = true;
 
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn){
@@ -30,12 +31,14 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn){
     lastX = xpos;
     lastY = ypos;
 
-    float sensetivity = 0.01f;
     xoffset *= sensetivity;
     yoffset *= sensetivity;
 
+
     yaw += xoffset;
     pitch += yoffset;
+    // printf("%.1f\t", yaw);
+    // printf("%.1f\n", pitch);
     // нельзя смотреть прямо вверх или вниз
     if (pitch > 89.0f)
         pitch = 89.0f;
@@ -142,16 +145,27 @@ int main() {
             cameraPos -= cameraSpeed * cameraFront;
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
             cameraPos += cameraSpeed * cameraFront;
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+            cameraPos += cameraUp * cameraSpeed;
+        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
+            cameraPos -= cameraUp * cameraSpeed;
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
             cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
             cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
+        if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
+            roll += sensetivity;
+        if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
+            roll -= sensetivity;
+        printf("%.3f\t%.3f\t%.3f\n", roll, yaw, pitch);
 
         glm::vec3 direction;
         direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
         direction.y = sin(glm::radians(pitch));
         direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
         cameraFront = glm::normalize(direction);
+
+        cameraUp = glm::normalize(glm::vec3(cos(glm::radians(roll)), sin(glm::radians(roll)), 0.0f));
 
         view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
 
@@ -182,7 +196,11 @@ int main() {
         // glDrawArrays(GL_TRIANGLES, 0, 3); т.к. индексированный рендеринг
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        
+        // printf("%.2f\t%.2f\t%.2f\t\t%.2f\t%.2f\t%.2f\t\t%.2f\t%.2f\t%.2f\n",
+        //     cameraPos.x, cameraPos.y, cameraPos.z,
+        //     cameraFront.x, cameraFront.y, cameraFront.z,
+        //     cameraUp.x, cameraUp.y, cameraUp.z
+        // );
 
         // Swap buffers and poll events
         glfwSwapBuffers(window);
