@@ -1,0 +1,22 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/lib/assimp/include",
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/lib/glad/include",
+                "${workspaceFolder}/lib/glfw-3.4.bin.WIN64/include",
+                "${workspaceFolder}/lib/glew-2.1.0/include",
+                "${workspaceFolder}/lib/glm"
+            ],
+            "defines": [],
+            "windowsSdkVersion": "10.0.19041.0",
+            "compilerPath": "${env:VSCMD_ARG_TGT_ARCH}\\cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-msvc-x64"
+        }
+    ],
+    "version": 4
+}

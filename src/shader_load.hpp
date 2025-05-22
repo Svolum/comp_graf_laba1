@@ -9,4 +9,4 @@
 
 std::string loadShaderSource(const char* filepath);
 GLuint compileShader(GLenum type, const char* source);
-GLuint createShaderProgram(const char* vertPath, const char* fragPath);
+GLuint createShaderProgram();

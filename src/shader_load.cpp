@@ -27,9 +27,9 @@ GLuint compileShader(GLenum type, const char* source) {
     }
     return shader;
 }
-GLuint createShaderProgram(const char* vert_path, const char* frag_path) {
-    std::string vert_shader_source = loadShaderSource(vert_path);
-    std::string frag_shader_source = loadShaderSource(frag_path);
+GLuint createShaderProgram() {
+    std::string vert_shader_source = loadShaderSource("shaders/vertex.glsl");
+    std::string frag_shader_source = loadShaderSource("shaders/fragment.glsl");
     if (vert_shader_source.empty() || frag_shader_source.empty()) return 0;
 
     GLuint vertex_shader = compileShader(GL_VERTEX_SHADER, vert_shader_source.c_str());
