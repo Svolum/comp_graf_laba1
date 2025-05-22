@@ -1,22 +1,19 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
-
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
-
 #include <vector>
 #include <iostream>
-
 #include "shader_load.hpp"
 #include "my_viev.hpp"
 
 const unsigned int SRC_WIDTH = 1024;
 const unsigned int SRC_HEIGHT = 768;
+
 
 struct MeshInfo {
     unsigned int indexCount;
@@ -39,7 +36,7 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     // Создание окна
-    GLFWwindow* window = glfwCreateWindow(SRC_WIDTH, SRC_HEIGHT, "Pashalka", nullptr, nullptr);
+    GLFWwindow* window = glfwCreateWindow(SRC_WIDTH, SRC_HEIGHT, "Model Viewer", nullptr, nullptr);
     if (!window) {
         glfwTerminate();
         std::cerr << "ОШИБКА: не удалось создать окно." << std::endl;
@@ -64,7 +61,7 @@ int main() {
     glEnable(GL_DEPTH_TEST);
 
     // Настройка камеры
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 5.0f);
+    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 5.0f); // Ближе к модели
     glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
     glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
     const float cameraSpeed = 0.005f;
@@ -95,9 +92,7 @@ int main() {
     // Загрузка вершин, нормалей и индексов
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
-
     unsigned int currentIndexOffset = 0;
-    
     for (unsigned int m = 0; m < scene->mNumMeshes; ++m) {
         aiMesh* mesh = scene->mMeshes[m];
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
@@ -106,11 +101,9 @@ int main() {
 
         unsigned int vertexOffset = vertices.size() / 6;
         for (unsigned int i = 0; i < mesh->mNumVertices; ++i) {
-            // Вершины
             vertices.push_back(mesh->mVertices[i].x);
             vertices.push_back(mesh->mVertices[i].y);
             vertices.push_back(mesh->mVertices[i].z);
-            // Нормали
             vertices.push_back(mesh->mNormals[i].x);
             vertices.push_back(mesh->mNormals[i].y);
             vertices.push_back(mesh->mNormals[i].z);
@@ -123,7 +116,6 @@ int main() {
             }
         }
 
-        // Добавление информации о цвете и индексе
         MeshInfo info;
         info.indexCount = mesh->mNumFaces * 3;
         info.indexOffset = currentIndexOffset;
@@ -167,8 +159,23 @@ int main() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
     glfwSetCursorPosCallback(window, mouse_callback);
 
+
+    glm::vec3 lightPos = glm::vec3(0.0f, 0.0f, 5.0f); // Свет сверху-спереди-справа
     // Основной цикл рендеринга
     while (!glfwWindowShouldClose(window)) {
+        // Обработка ввода для света
+        if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS)
+            lightPos += glm::vec3(0.0f, 0.0f, -1.0f) * cameraSpeed; // forward
+        if (glfwGetKey(window, GLFW_KEY_K) == GLFW_PRESS)
+            lightPos += glm::vec3(0.0f, 0.0f, 1.0f) * cameraSpeed; // backward
+        if (glfwGetKey(window, GLFW_KEY_J) == GLFW_PRESS)
+            lightPos += glm::vec3(-1.0f, 0.0f, 0.0f) * cameraSpeed; // left
+        if (glfwGetKey(window, GLFW_KEY_L) == GLFW_PRESS)
+            lightPos += glm::vec3(1.0f, 0.0f, 0.0f) * cameraSpeed; // right
+        if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS)
+            lightPos += glm::vec3(0.0f, 1.0f, 0.0f) * cameraSpeed; // up
+        if (glfwGetKey(window, GLFW_KEY_O) == GLFW_PRESS)
+            lightPos += glm::vec3(0.0f, -1.0f, 0.0f) * cameraSpeed; // down
         // Обработка ввода
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
@@ -205,14 +212,21 @@ int main() {
 
         glUseProgram(shaderProgram);
 
-        // Параметры освещения
-        glm::vec3 lightDir = glm::normalize(glm::vec3(-1.0f, -1.0f, -1.0f)); // Свет сверху-спереди-слева
-        glm::vec3 lightColor(1.0f, 1.0f, 1.0f); // Белый свет
-        glUniform3fv(glGetUniformLocation(shaderProgram, "lightDir"), 1, glm::value_ptr(lightDir));
+        // Параметры точечного источника света
+        glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f); // Белый свет
+        glUniform3fv(glGetUniformLocation(shaderProgram, "lightPos"), 1, glm::value_ptr(lightPos));
         glUniform3fv(glGetUniformLocation(shaderProgram, "lightColor"), 1, glm::value_ptr(lightColor));
 
+        // Параметры затухания
+        float constant = 1.0f;
+        float linear = 0.09f;
+        float quadratic = 0.032f;
+        glUniform1f(glGetUniformLocation(shaderProgram, "constant"), constant);
+        glUniform1f(glGetUniformLocation(shaderProgram, "linear"), linear);
+        glUniform1f(glGetUniformLocation(shaderProgram, "quadratic"), quadratic);
+
         // Установка матриц
-        glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(1.0f)); // Масштаб 1.0
+        glm::mat4 model = glm::scale(glm::mat4(1.0f), glm::vec3(0.5f)); // Масштаб 0.5
         GLint modelLoc = glGetUniformLocation(shaderProgram, "model");
         GLint viewLoc = glGetUniformLocation(shaderProgram, "view");
         GLint projLoc = glGetUniformLocation(shaderProgram, "projection");
