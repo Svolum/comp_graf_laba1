@@ -1,4 +1,4 @@
-[https://rcsearch.ru/w/images/b/be/1fTbyJICl8g.jpg](https://rcsearch.ru/w/images/b/be/1fTbyJICl8g.jpg)
+![углы эйлера](https://rcsearch.ru/w/images/b/be/1fTbyJICl8g.jpg)
 
 
 вариант: 9
