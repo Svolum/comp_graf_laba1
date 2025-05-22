@@ -261,7 +261,7 @@ int main() {
                 (void*)(meshPart.indexOffset * sizeof(unsigned int))
             );
         }
-        ///
+        /// bord
         // glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
     
